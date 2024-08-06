@@ -34,7 +34,7 @@ void insert_n_items(hash_table* ht, const unsigned int n) {
 }
 
 // [start, end)
-void verify_items(hash_table* ht, unsigned int start, unsigned int end) {
+void verify_items(const hash_table* ht, unsigned int start, unsigned int end) {
   for (int i = start; i < end; i++) {
     char *key, *value;
     safe_asprintf(&key, "key%d", i);

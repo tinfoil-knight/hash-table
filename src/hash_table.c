@@ -35,6 +35,7 @@ static hash_table* new_sized_hashtable(const unsigned int base_size) {
   }
 
   ht->base_size = base_size;
+  // Using a prime number leads to lower collisions.
   ht->size = next_prime(ht->base_size);
   ht->count = 0;
   ht->items = calloc((size_t)ht->size, sizeof(ht_item*));
@@ -83,7 +84,7 @@ static int get_hash(const char* s, const int num_buckets, const int attempt) {
   return (hash_a + (attempt * hash_b)) % num_buckets;
 }
 
-void print_ht_item(ht_item* item) {
+void print_ht_item(const ht_item* item) {
   if (item == NULL) {
     printf("ht_item is NULL\n");
     return;
@@ -148,7 +149,7 @@ void insert(hash_table* ht, const char* key, const char* value) {
   ht->count++;
 }
 
-char* search(hash_table* ht, const char* key) {
+char* search(const hash_table* ht, const char* key) {
   int index = get_hash(key, ht->size, 0);
   ht_item* item = ht->items[index];
   int i = 1;
