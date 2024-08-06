@@ -4,8 +4,9 @@ typedef struct {
 } ht_item;
 
 typedef struct {
-  int size;
-  int count;
+  unsigned int base_size;
+  unsigned int size;
+  unsigned int count;
   ht_item** items;
 } hash_table;
 

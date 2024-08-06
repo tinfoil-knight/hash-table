@@ -20,11 +20,8 @@ void safe_asprintf(char** strp, const char* format, ...) {
   }
 }
 
-void test_insert_and_search() {
-  hash_table* ht = new_hashtable();
-  const int NUM_ITEMS = 50;
-
-  for (int i = 0; i < NUM_ITEMS; i++) {
+void insert_n_items(hash_table* ht, const unsigned int n) {
+  for (int i = 0; i < n; i++) {
     char *key, *value;
     safe_asprintf(&key, "key%d", i);
     safe_asprintf(&value, "value%d", i);
@@ -34,21 +31,30 @@ void test_insert_and_search() {
     free(key);
     free(value);
   }
+}
 
-  char* result;
-  for (int i = 0; i < NUM_ITEMS; i++) {
+// [start, end)
+void verify_items(hash_table* ht, unsigned int start, unsigned int end) {
+  for (int i = start; i < end; i++) {
     char *key, *value;
     safe_asprintf(&key, "key%d", i);
     safe_asprintf(&value, "value%d", i);
 
-    result = search(ht, key);
-
+    char* result = search(ht, key);
     assert(result != NULL);
     assert(strcmp(result, value) == 0);
 
     free(key);
     free(value);
   }
+}
+
+void test_insert_and_search() {
+  hash_table* ht = new_hashtable();
+  const int NUM_ITEMS = 50;
+
+  insert_n_items(ht, NUM_ITEMS);
+  verify_items(ht, 0, NUM_ITEMS);
 
   assert(search(ht, "nonexistent_key") == NULL);
 
@@ -60,46 +66,49 @@ void test_delete() {
   hash_table* ht = new_hashtable();
   const int NUM_ITEMS = 50;
 
-  for (int i = 0; i < NUM_ITEMS; i++) {
-    char *key, *value;
-    safe_asprintf(&key, "key%d", i);
-    safe_asprintf(&value, "value%d", i);
+  insert_n_items(ht, NUM_ITEMS);
 
-    insert(ht, key, value);
-
-    free(key);
-    free(value);
-  }
-
-  const char* to_del = "key7";
+  const char* to_del = "key0";
   del(ht, to_del);
 
   char* value = search(ht, to_del);
   assert(value == NULL);
 
-  char* result;
-  for (int i = 0; i < NUM_ITEMS; i++) {
-    char *key, *value;
-    safe_asprintf(&key, "key%d", i);
-    safe_asprintf(&value, "value%d", i);
-
-    if (strcmp(to_del, key) != 0) {
-      result = search(ht, key);
-      assert(result != NULL);
-      assert(strcmp(result, value) == 0);
-    }
-
-    free(key);
-    free(value);
-  }
+  verify_items(ht, 1, NUM_ITEMS);
 
   del_hashtable(ht);
   success("test_delete");
 }
 
+void test_resize() {
+  hash_table* ht = new_hashtable();
+  const int NUM_ITEMS = 500; // should be large enough to trigger resizing
+
+  // upward resize
+  insert_n_items(ht, NUM_ITEMS);
+
+  // verify that all items are inserted correctly
+  verify_items(ht, 0, NUM_ITEMS);
+
+  // downward resize
+  for (int i = 0; i < NUM_ITEMS / 2; i++) {
+    char* key;
+    safe_asprintf(&key, "key%d", i);
+    del(ht, key);
+    free(key);
+  }
+
+  // verify that remaining items are still stored correctly
+  verify_items(ht, NUM_ITEMS / 2, NUM_ITEMS);
+
+  del_hashtable(ht);
+  success("test_resize");
+}
+
 void run_tests() {
   test_insert_and_search();
   test_delete();
+  test_resize();
 }
 
 int main() {

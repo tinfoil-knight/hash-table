@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "hash_table.h"
+#include "prime.h"
 
 #define HT_INIT_SIZE 100
 #define HT_PRIME_1 313
@@ -26,14 +27,26 @@ static void del_item(ht_item* i) {
   }
 }
 
-hash_table* new_hashtable() {
+static hash_table* new_sized_hashtable(const unsigned int base_size) {
   hash_table* ht = malloc(sizeof(hash_table));
+  if (ht == NULL) {
+    fprintf(stderr, "memory allocation failed for hashtable\n");
+    exit(EXIT_FAILURE);
+  }
 
-  ht->size = HT_INIT_SIZE;
+  ht->base_size = base_size;
+  ht->size = next_prime(ht->base_size);
   ht->count = 0;
   ht->items = calloc((size_t)ht->size, sizeof(ht_item*));
+  if (ht->items == NULL) {
+    fprintf(stderr, "memory allocation failed for hashtable items\n");
+    exit(EXIT_FAILURE);
+  }
+
   return ht;
 }
+
+hash_table* new_hashtable() { return new_sized_hashtable(HT_INIT_SIZE); }
 
 void del_hashtable(hash_table* ht) {
   for (int i = 0; i < ht->size; i++) {
@@ -80,7 +93,43 @@ void print_ht_item(ht_item* item) {
          item->value ? item->value : "NULL");
 }
 
+static void resize(hash_table* ht, unsigned int base_size) {
+  if (base_size < HT_INIT_SIZE) {
+    base_size = HT_INIT_SIZE;
+  }
+
+  hash_table* new_ht = new_sized_hashtable(base_size);
+  for (int i = 0; i < ht->size; i++) {
+    ht_item* item = ht->items[i];
+    if (item != NULL && item != &HT_DELETED_ITEM) {
+      insert(new_ht, item->key, item->value);
+    }
+  }
+
+  ht->base_size = new_ht->base_size;
+  ht->count = new_ht->count;
+
+  // swap values and delete new_ht
+
+  const int tmp_size = ht->size;
+  ht->size = new_ht->size;
+  new_ht->size = tmp_size;
+
+  ht_item** tmp_items = ht->items;
+  ht->items = new_ht->items;
+  new_ht->items = tmp_items;
+
+  del_hashtable(new_ht);
+}
+
+static void resize_up(hash_table* ht) { resize(ht, ht->base_size * 2); }
+static void resize_down(hash_table* ht) { resize(ht, ht->base_size / 2); }
+
 void insert(hash_table* ht, const char* key, const char* value) {
+  const int load = ht->count * 100 / ht->size;
+  if (load > 70)
+    resize_up(ht);
+
   ht_item* item = new_item(key, value);
   int index = get_hash(item->key, ht->size, 0);
   ht_item* cur_item = ht->items[index];
@@ -115,6 +164,10 @@ char* search(hash_table* ht, const char* key) {
 }
 
 void del(hash_table* ht, const char* key) {
+  const int load = ht->count * 100 / ht->size;
+  if (load < 30)
+    resize_down(ht);
+
   int index = get_hash(key, ht->size, 0);
   ht_item* item = ht->items[index];
   int i = 1;
